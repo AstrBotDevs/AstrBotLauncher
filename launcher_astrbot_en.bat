@@ -6,7 +6,7 @@ setlocal
 cls
 echo.
 echo =========================
-echo    AstrBot Launcher v0.1.4
+echo    AstrBot Launcher v0.2.0
 echo =========================
 echo.
 
