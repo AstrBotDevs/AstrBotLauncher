@@ -62,7 +62,7 @@ goto SetupAndRun
 
 :downloadLatestRelease
 :: Call GitHub API to get the latest release information
-powershell -Command "$release = Invoke-WebRequest -Uri 'https://api.github.com/repos/Soulter/AstrBot/releases/latest' -UseBasicParsing -ErrorAction Stop | ConvertFrom-Json; echo $release.zipball_url" > latest.txt
+powershell -Command "$release = Invoke-WebRequest -Uri 'https://api.github.com/repos/AstrBotDevs/AstrBot/releases/latest' -UseBasicParsing -ErrorAction Stop | ConvertFrom-Json; echo $release.zipball_url" > latest.txt
 
 :: Check if the download URL was successfully obtained
 if not exist latest.txt (
@@ -81,7 +81,7 @@ powershell -Command "Invoke-WebRequest -Uri '%download_url%' -OutFile 'latest.zi
 
 :: Check if the download was successful
 if not exist latest.zip (
-    echo [ERROR] Failed to download the latest version file. You can manually download the zip from https://github.com/Soulter/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
+    echo [ERROR] Failed to download the latest version file. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
     goto end
 )
 
@@ -96,7 +96,7 @@ powershell -Command "Expand-Archive -Path 'latest.zip' -DestinationPath '.' -For
 
 :: Check if the extraction was successful
 if errorlevel 1 (
-    echo [ERROR] An error occurred while extracting the latest version files. You can manually download the zip from https://github.com/Soulter/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
+    echo [ERROR] An error occurred while extracting the latest version files. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
     goto end
 )
 
