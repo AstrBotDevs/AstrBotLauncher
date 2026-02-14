@@ -14,11 +14,13 @@ set PYTHON_CMD=python
 
 set MIRROR_URL=https://mirrors.aliyun.com/pypi/simple
 set FALLBACK_MIRROR_URL=https://pypi.org/simple
+set ASTRBOT_EXIT_CODE=0
 
 :: Check if Python is installed
 %PYTHON_CMD% --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Python is not installed. Please install Python 3.10 or higher.
+    set ASTRBOT_EXIT_CODE=1
     goto end
 )
 
@@ -36,11 +38,13 @@ for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VERSION%") do (
 :: Check if Python version is less than 3.10
 if %PYTHON_MAJOR% lss 3 (
     echo [ERROR] Python 3.10 or higher is required. Current version is %PYTHON_VERSION%.
+    set ASTRBOT_EXIT_CODE=1
     goto end
 )
 
 if %PYTHON_MAJOR%==3 if %PYTHON_MINOR% lss 10 (
     echo [ERROR] Python 3.10 or higher is required. Current version is %PYTHON_VERSION%.
+    set ASTRBOT_EXIT_CODE=1
     goto end
 )
 
@@ -53,7 +57,10 @@ if not exist AstrBot (
     if not exist QQChannelChatGPT (
         echo [INFO] AstrBot folder not found. Downloading the latest version from GitHub...
         call :downloadLatestRelease
-        if errorlevel 1 goto end
+        if errorlevel 1 (
+            set ASTRBOT_EXIT_CODE=1
+            goto end
+        )
     )
 )
 
@@ -98,7 +105,7 @@ if errorlevel 1 (
 
 :: Check if the download was successful
 if not exist latest.zip (
-    echo [ERROR] Failed to download the latest version file. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
+    echo [ERROR] Failed to download the latest version file. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the folder inside the zip to the current directory and rename it to AstrBot.
     exit /b 1
 )
 
@@ -109,11 +116,11 @@ echo [INFO] The file has been downloaded to latest.zip.
 :: Extract the latest version files
 echo [INFO] Extracting the latest version files...
 echo.
-powershell -Command "Expand-Archive -Path 'latest.zip' -DestinationPath '.' -Force"
+powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath 'latest.zip' -DestinationPath '.' -Force"
 
 :: Check if the extraction was successful
 if errorlevel 1 (
-    echo [ERROR] An error occurred while extracting the latest version files. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the **folder inside the zip** to the current directory and rename it to AstrBot.
+    echo [ERROR] An error occurred while extracting the latest version files. You can manually download the zip from https://github.com/AstrBotDevs/AstrBot/releases/latest, then extract the folder inside the zip to the current directory and rename it to AstrBot.
     exit /b 1
 )
 
@@ -142,6 +149,7 @@ if exist AstrBot (
     cd QQChannelChatGPT
 ) else (
     echo [ERROR] Neither AstrBot nor QQChannelChatGPT folder exists.
+    set ASTRBOT_EXIT_CODE=1
     goto end
 )
 
@@ -151,6 +159,7 @@ if not exist venv (
     %PYTHON_CMD% -m venv venv
     if errorlevel 1 (
         echo [ERROR] Failed to create virtual environment.
+        set ASTRBOT_EXIT_CODE=1
         goto end
     )
 )
@@ -159,37 +168,43 @@ if not exist venv (
 call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo [ERROR] Failed to activate virtual environment.
+    set ASTRBOT_EXIT_CODE=1
     goto end
 )
 
 :: Check for dependency updates
-echo [INFO] Checking for dependency updates. Using mirror: %MIRROR_URL%.
-python -m pip install --upgrade pip -i %MIRROR_URL% >nul 2>&1
+echo [INFO] Upgrading pip using index: %MIRROR_URL%
+%PYTHON_CMD% -m pip install --upgrade pip -i %MIRROR_URL% >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] Mirror install failed. Retrying pip upgrade with official PyPI...
-    python -m pip install --upgrade pip -i %FALLBACK_MIRROR_URL% >nul 2>&1
+    echo [WARN] pip upgrade failed with %MIRROR_URL%. Retrying with %FALLBACK_MIRROR_URL%...
+    %PYTHON_CMD% -m pip install --upgrade pip -i %FALLBACK_MIRROR_URL% >nul 2>&1
     if errorlevel 1 (
         echo [ERROR] Failed to upgrade pip.
+        set ASTRBOT_EXIT_CODE=1
         goto end
     )
 )
 
-python -m pip install uv -i %MIRROR_URL% >nul 2>&1
+echo [INFO] Installing uv using index: %MIRROR_URL%
+%PYTHON_CMD% -m pip install uv -i %MIRROR_URL% >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] Mirror install failed. Retrying uv install with official PyPI...
-    python -m pip install uv -i %FALLBACK_MIRROR_URL% >nul 2>&1
+    echo [WARN] uv install failed with %MIRROR_URL%. Retrying with %FALLBACK_MIRROR_URL%...
+    %PYTHON_CMD% -m pip install uv -i %FALLBACK_MIRROR_URL% >nul 2>&1
     if errorlevel 1 (
         echo [ERROR] Failed to install uv.
+        set ASTRBOT_EXIT_CODE=1
         goto end
     )
 )
 
-python -m uv pip install -r requirements.txt -i %MIRROR_URL%
+echo [INFO] Installing requirements using index: %MIRROR_URL%
+%PYTHON_CMD% -m uv pip install -r requirements.txt -i %MIRROR_URL%
 if errorlevel 1 (
-    echo [WARN] Mirror install failed. Retrying requirements install with official PyPI...
-    python -m uv pip install -r requirements.txt -i %FALLBACK_MIRROR_URL%
+    echo [WARN] requirements install failed with %MIRROR_URL%. Retrying with %FALLBACK_MIRROR_URL%...
+    %PYTHON_CMD% -m uv pip install -r requirements.txt -i %FALLBACK_MIRROR_URL%
     if errorlevel 1 (
         echo [ERROR] Failed to install dependencies from requirements.txt.
+        set ASTRBOT_EXIT_CODE=1
         goto end
     )
 )
@@ -197,9 +212,10 @@ if errorlevel 1 (
 :: Run the main script
 echo [INFO] Starting AstrBot.
 echo.
-python main.py
-if errorlevel 1 (
-    echo [ERROR] AstrBot exited with an error.
+%PYTHON_CMD% main.py
+set "ASTRBOT_EXIT_CODE=%ERRORLEVEL%"
+if %ASTRBOT_EXIT_CODE% neq 0 (
+    echo [ERROR] AstrBot exited with error code %ASTRBOT_EXIT_CODE%.
 )
 
 :: Deactivate the virtual environment
@@ -208,5 +224,5 @@ call venv\Scripts\deactivate.bat
 cd ..
 
 :end
-endlocal
 pause
+endlocal & exit /b %ASTRBOT_EXIT_CODE%
