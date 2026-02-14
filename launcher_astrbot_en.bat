@@ -91,11 +91,12 @@ if "%download_url%"=="" (
     exit /b 1
 )
 
-echo [INFO] Downloading the latest version of AstrBot from %download_url%...
+set "ASTRBOT_DOWNLOAD_URL=%download_url%"
+echo [INFO] Downloading the latest version of AstrBot...
 
 :download
 :: Download the latest zipball version
-powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri '%download_url%' -OutFile 'latest.zip'"
+powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri $env:ASTRBOT_DOWNLOAD_URL -OutFile 'latest.zip'"
 
 if errorlevel 1 (
     echo [ERROR] Failed to download the latest version file. Please check your network and try again.
@@ -224,5 +225,7 @@ call venv\Scripts\deactivate.bat
 cd ..
 
 :end
-pause
+if not "%ASTRBOT_NO_PAUSE%"=="1" (
+    if %ASTRBOT_EXIT_CODE% neq 0 pause
+)
 endlocal & exit /b %ASTRBOT_EXIT_CODE%
