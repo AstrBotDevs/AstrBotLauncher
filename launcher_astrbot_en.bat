@@ -15,6 +15,8 @@ set PYTHON_CMD=python
 set MIRROR_URL=https://mirrors.aliyun.com/pypi/simple
 set FALLBACK_MIRROR_URL=https://pypi.org/simple
 set ASTRBOT_EXIT_CODE=0
+set DOWNLOAD_MAX_RETRIES=3
+set DOWNLOAD_RETRY_DELAY_SEC=3
 
 :: Check if Python is installed
 %PYTHON_CMD% --version >nul 2>&1
@@ -69,6 +71,10 @@ echo.
 goto SetupAndRun
 
 :downloadLatestRelease
+:: Clean stale download metadata/files from previous failed runs
+if exist latest.txt del /q latest.txt >nul 2>&1
+if exist latest.zip del /q latest.zip >nul 2>&1
+
 :: Call GitHub API to get the latest release information
 powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/AstrBotDevs/AstrBot/releases/latest'; if (-not $release.zipball_url) { throw 'zipball_url is empty' }; Set-Content -Path 'latest.txt' -Value $release.zipball_url -NoNewline -Encoding ASCII"
 
@@ -95,14 +101,31 @@ set "ASTRBOT_DOWNLOAD_URL=%download_url%"
 echo [INFO] Downloading the latest version of AstrBot...
 
 :download
+set DOWNLOAD_ATTEMPT=1
+
+:download_retry
+echo [INFO] Download attempt %DOWNLOAD_ATTEMPT%/%DOWNLOAD_MAX_RETRIES%...
+
+if exist latest.zip del /q latest.zip >nul 2>&1
+
 :: Download the latest zipball version
 powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; Invoke-WebRequest -Uri $env:ASTRBOT_DOWNLOAD_URL -OutFile 'latest.zip'"
 
-if errorlevel 1 (
-    echo [ERROR] Failed to download the latest version file. Please check your network and try again.
+if not errorlevel 1 goto download_success
+
+if %DOWNLOAD_ATTEMPT% geq %DOWNLOAD_MAX_RETRIES% (
+    echo [ERROR] Failed to download the latest version file after %DOWNLOAD_MAX_RETRIES% attempts. Please check your network and try again.
     if exist latest.zip del /q latest.zip >nul 2>&1
     exit /b 1
 )
+
+set /a DOWNLOAD_WAIT_SEC=%DOWNLOAD_RETRY_DELAY_SEC%*%DOWNLOAD_ATTEMPT%
+echo [WARN] Download attempt %DOWNLOAD_ATTEMPT% failed. Retrying in %DOWNLOAD_WAIT_SEC% seconds...
+timeout /t %DOWNLOAD_WAIT_SEC% /nobreak >nul
+set /a DOWNLOAD_ATTEMPT=%DOWNLOAD_ATTEMPT%+1
+goto download_retry
+
+:download_success
 
 :: Check if the download was successful
 if not exist latest.zip (
