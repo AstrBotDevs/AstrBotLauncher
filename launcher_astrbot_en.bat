@@ -17,6 +17,7 @@ set FALLBACK_MIRROR_URL=https://pypi.org/simple
 set ASTRBOT_EXIT_CODE=0
 set DOWNLOAD_MAX_RETRIES=3
 set DOWNLOAD_RETRY_DELAY_SEC=3
+set PROJECT_DIR_CHANGED=0
 
 :: Check if Python is installed
 %PYTHON_CMD% --version >nul 2>&1
@@ -169,13 +170,15 @@ exit /b 0
 :: Change to AstrBot or QQChannelChatGPT directory
 if exist AstrBot (
     cd AstrBot
+    set PROJECT_DIR_CHANGED=1
 ) else (
     if exist QQChannelChatGPT (
         cd QQChannelChatGPT
+        set PROJECT_DIR_CHANGED=1
     ) else (
         echo [ERROR] Neither AstrBot nor QQChannelChatGPT folder exists.
         set ASTRBOT_EXIT_CODE=1
-        goto end
+        goto cleanup
     )
 )
 
@@ -186,7 +189,7 @@ if not exist venv (
     if errorlevel 1 (
         echo [ERROR] Failed to create virtual environment.
         set ASTRBOT_EXIT_CODE=1
-        goto end
+        goto cleanup
     )
 )
 
@@ -195,7 +198,7 @@ call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo [ERROR] Failed to activate virtual environment.
     set ASTRBOT_EXIT_CODE=1
-    goto end
+    goto cleanup
 )
 
 :: Check for dependency updates
@@ -207,7 +210,7 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo [ERROR] Failed to upgrade pip.
         set ASTRBOT_EXIT_CODE=1
-        goto end
+        goto cleanup
     )
 )
 
@@ -219,7 +222,7 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo [ERROR] Failed to install uv.
         set ASTRBOT_EXIT_CODE=1
-        goto end
+        goto cleanup
     )
 )
 
@@ -231,7 +234,7 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo [ERROR] Failed to install dependencies from requirements.txt.
         set ASTRBOT_EXIT_CODE=1
-        goto end
+        goto cleanup
     )
 )
 
@@ -247,7 +250,13 @@ if %ASTRBOT_EXIT_CODE% neq 0 (
 :: Deactivate the virtual environment
 call venv\Scripts\deactivate.bat
 
-cd ..
+goto cleanup
+
+:cleanup
+if "%PROJECT_DIR_CHANGED%"=="1" (
+    cd ..
+    set PROJECT_DIR_CHANGED=0
+)
 
 :end
 if not "%ASTRBOT_NO_PAUSE%"=="1" (
