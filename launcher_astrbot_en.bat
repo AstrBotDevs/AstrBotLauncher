@@ -146,12 +146,14 @@ exit /b 0
 :: Change to AstrBot or QQChannelChatGPT directory
 if exist AstrBot (
     cd AstrBot
-) else if exist QQChannelChatGPT (
-    cd QQChannelChatGPT
 ) else (
-    echo [ERROR] Neither AstrBot nor QQChannelChatGPT folder exists.
-    set ASTRBOT_EXIT_CODE=1
-    goto end
+    if exist QQChannelChatGPT (
+        cd QQChannelChatGPT
+    ) else (
+        echo [ERROR] Neither AstrBot nor QQChannelChatGPT folder exists.
+        set ASTRBOT_EXIT_CODE=1
+        goto end
+    )
 )
 
 :: Set up a virtual environment
